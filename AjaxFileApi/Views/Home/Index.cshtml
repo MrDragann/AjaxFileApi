@@ -1,31 +1,106 @@
 ﻿@{
     ViewBag.Title = "Home Page";
 }
-
-<div class="jumbotron">
-    <h1>ASP.NET</h1>
-    <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-    <p><a href="http://asp.net" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
+<hr />
+<div>
+    <input class="btn btn-primary" type="file" name="upload" id="uploadFile" multiple accept="image/*"/><br />
+    <button id="submit" class="btn btn-warning">Загрузить</button>
+    <ul id="img-list"></ul>
 </div>
 
-<div class="row">
-    <div class="col-md-4">
-        <h2>Getting started</h2>
-        <p>
-            ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-            enables a clean separation of concerns and gives you full control over markup
-            for enjoyable, agile development.
-        </p>
-        <p><a class="btn btn-default" href="http://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Get more libraries</h2>
-        <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-        <p><a class="btn btn-default" href="http://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Web Hosting</h2>
-        <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-        <p><a class="btn btn-default" href="http://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
-    </div>
-</div>
+
+@section scripts{
+    <script type="text/javascript">
+
+        $(document).ready(function () {
+            
+            var imgList = $('ul#img-list');
+            var fileInput = $('#uploadFile');
+
+            // Обработка события выбора файлов
+            fileInput.bind({
+                change: function () {
+                    displayFiles(this.files);
+                }
+            });
+
+            // Создание миниатюр изображений
+            function displayFiles(files) {
+                $.each(files, function (i, file) {
+
+                    // Создание элемента li и помещение в него названия, миниатюрки и progress bar
+                    var li = $('<li/>').appendTo(imgList);
+                    $('<div/>').text(file.name).appendTo(li);
+                    var img = $('<img/>').appendTo(li);
+                    img.addClass('img-thumbnail');
+                    $('<div/>').text(Math.round(file.size / 1024) + ' Кб.').appendTo(li);
+                    var divProgress = $('<div/>').addClass('progress').appendTo(li);
+                    $('<div/>').text('0%').attr({ "class": "progress-bar", "role": "progressbar", "aria-valuenow": "0", "aria-valuemin": "0", "aria-valuemax": "100", "style": "width: 0%;" }).appendTo(divProgress);
+
+                    // Создаем объект FileReader и по завершении чтения файла, отображаем миниатюру 
+                    var reader = new FileReader();
+                    reader.onload = (function (aImg) {
+                        return function (e) {
+                            aImg.attr('src', e.target.result);
+                            aImg.attr('width', 150);
+                        };
+                    })(img);
+                    // Чтение данных из объекта file
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            // Загрузка файлов на сервер
+            $('#submit').on('click', function (e) {
+                var files = document.getElementById('uploadFile').files;
+                if (files.length > 0) {
+                    if (window.FormData !== undefined) {
+                        var formData = new FormData();
+                        for (var x = 0; x < files.length; x++) {
+                            formData.append("file" + x, files[x]);
+                        }
+
+                        $.ajax({
+                            type: "POST",
+                            url: 'Home/Upload',
+                            xhr: function () {
+                                // Создание объекта XMLHttpRequest
+                                var myXhr = $.ajaxSettings.xhr();
+                                // Проверка существования свойства upload
+                                if (myXhr.upload) {
+                                    // получение статуса загрузки
+                                    myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                                }
+                                return myXhr;
+                            },
+                            contentType: false,
+                            processData: false,
+                            data: formData,
+                            success: function (result) {
+                                console.log(result);
+                            },
+                            error: function (xhr) {
+                                console.log(xhr.responseText);
+                            }
+                        });
+                    } else {
+                        alert("Браузер не поддерживает загрузку файлов HTML5!");
+                    }
+                }
+            });
+
+            /// Вывод статуса загрузки файлов
+            function progressHandlingFunction(e) {
+                if (e.lengthComputable) {
+                    var percentComplete = Math.round(e.loaded * 100 / e.total);
+                    $('.progress-bar').css("width", percentComplete + '%').attr('aria-valuenow', percentComplete);
+                    $('.progress-bar').text(percentComplete + "%");
+                }
+                else {
+                    $('.progress-bar').text('неизвестно');
+                }
+            }
+        });
+
+    </script>
+}
